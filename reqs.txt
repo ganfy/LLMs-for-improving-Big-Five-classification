@@ -1,0 +1,13 @@
+accelerate==0.29.3
+einops==0.7.0
+sentence-transformers==2.7.0
+transformers==4.39.3
+qdrant-client==1.9.0
+llama-index==0.10.32
+llama-index-agent-openai==0.2.3
+llama-index-cli==0.1.12
+llama-index-core==0.10.32
+llama-index-embeddings-fastembed==0.1.4
+llama-index-legacy==0.9.48
+llama-index-llms-huggingface==0.1.4
+llama-index-vector-stores-qdrant==0.2.8
