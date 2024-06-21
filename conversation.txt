@@ -1,0 +1,31 @@
+Psychotherapist: Hi, how are you feeling today?
+Client: I'm feeling somewhere between anxious and energized.
+Psychotherapist: Can you tell me more about what's behind these feelings of being somewhere between anxious and energized? Are there any specific thoughts or physical sensations that are contributing to this experience?
+Client: I have so much work to do and part of me is worried about that, but another part is taking it calmly and doing my work in a medium pace.
+Psychotherapist: What role do you think your thoughts about being overwhelmed with work play in this experience of feeling somewhere between anxious and energized?
+Client: Hmmm, right now I don't feel very overwhelmed, I mean, for sure I must be, but somehow I am taking it easy.
+Psychotherapist: What does it mean to you that despite feeling overwhelmed with work, you're currently not feeling very overwhelmed? Are there any thoughts or physical sensations that are contributing to this sense of ease, even in the midst of a potentially overwhelming workload?
+Client: I think it means that I have achieve a certain level of self-control. I guess. I mean, I'm in the middle of what i could call 'a good part' of my life, talking about other areas apart from academic.
+Psychotherapist: What are some specific thoughts or physical sensations that contribute to your sense of self-control? Are there any particular moments or experiences that have helped you achieve this level of control?
+Client: Talking about physical sensations... this abscence of visible signs of anxiety is an indicator of my self-control. i guess. But I'm not sure of what moments brought me to this level.
+
+"y", "y", "n", "n", "y"
+
+
+Psychotherapist: Hi, how are you feeling today?
+Client: Somewhat tired but eager to finish my work or try my best.
+Psychotherapist: "I'm glad you're feeling somewhat tired, but also eager to get things done. That's great motivation! Can we talk a bit about what's been on your mind lately? What do you think is driving that eagerness to finish your work?"
+Client: Hmmm... I guess I am kinda motivated lately. Not a lot though. But, days are better this year.
+Psychotherapist: "Ah, it sounds like you're experiencing some mixed emotions - feeling tired but also motivated to get things done. That's really interesting! So, what do you think has been different this year that's making your days better? Is there something specific that's changed or is it more of a general sense?"
+Client: I mean, now I've got a boyfriend, that is definitely something new.
+Psychotherapist: "Ah, having a romantic partner can bring a lot of changes to one's life and emotions. It sounds like it might be contributing to your improved days lately. Can you tell me more about what that's been like for you? Are there any specific things or experiences with your boyfriend that have stood out as particularly positive?"
+Client: Erm, everything? Haha, well, obviously not everything, but somehow I have no complaints. I had complicated rlationships before, but this one is very peaceful, i must say. We both have a sense of emotional responsibility and are often trying to treat the other like they deserve.
+Psychotherapist: It sounds like having your boyfriend in your life has been a positive influence for you. The sense of emotional responsibility and mutual respect you're experiencing with him can bring a lot of joy and stability to your relationship. I'm glad to hear that things are going well for you in this area. How do you think your relationships in general might be different now compared to before, given the peaceful and supportive dynamic you're sharing with your boyfriend?
+Client: Actually, is there is something I can rescue from all my previous relationships, especially this one, is that during our best moments, my relationship withmy parents changes positively, which means  lot as we haven't been always in good terms. But also, surprisingly, I'm improving the way I treat my friends, he sometimes makes me apologize with them or makes me think about things I say or do, to be a better person.
+Psychotherapist: "It's really great to hear that you're experiencing positive changes in your relationships with your parents and friends as a result of this current relationship. It sounds like your boyfriend is having a supportive influence on you, helping you grow and become more mindful of your interactions with others. That's something to celebrate! Can we talk more about what specific qualities or behaviors from him are contributing to these positive changes?"
+Client: Erm, I guess he just asks me to do those things, calmly. Also, he comforts me when i'm not feeling well about some things, and thakes me feel better about everything. 
+Psychotherapist: It sounds like having your boyfriend in your life has been a positive influence for you, helping you grow and become more mindful of your interactions with others. The fact that he calmly encourages you to apologize or reflect on your actions is particularly noteworthy. It's as if he's modeling healthy communication habits and emotional intelligence.
+I'm curious - how do you think this newfound sense of emotional responsibility and mutual respect will continue to impact your relationships in the long term? Will you be more likely to prioritize open communication, empathy, and self-reflection in your interactions with others?
+Client: Definitely, I think so, in that way he is such a positive influence. He is not perfect though. But, as I said, so far, I have no complaints. We both can improve our faults.
+
+"y", "n", "y", "y", "y"

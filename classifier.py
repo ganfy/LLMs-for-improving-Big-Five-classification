@@ -1,16 +1,23 @@
+import sys
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertTokenizer, BertForSequenceClassification, AdamW
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score, classification_report
 import numpy as np
+
+if len(sys.argv) != 3:
+    print("Uso: python script.py <path_dataset> <output_model_file>")
+    sys.exit(1)
+
+data_path = sys.argv[1]
+output_model_file = sys.argv[2]
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(device)
 
 # Cargar los datos
-data = pd.read_csv('essays/essays.csv', encoding='latin1')
+data = pd.read_csv(data_path, encoding='latin1')
 
 # Convertir etiquetas 'y' y 'n' a 1.0 y 0.0
 data[['cEXT', 'cNEU', 'cAGR', 'cCON', 'cOPN']] = data[['cEXT', 'cNEU', 'cAGR', 'cCON', 'cOPN']].applymap(lambda x: 1.0 if x == 'y' else 0.0)
@@ -49,7 +56,7 @@ class PersonalityDataset(Dataset):
 
 MAX_LEN = 256
 BATCH_SIZE = 8
-EPOCHS = 4
+EPOCHS = 20
 LEARNING_RATE = 2e-5
 
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -130,7 +137,7 @@ for epoch in range(EPOCHS):
     print(f'Val loss {val_loss}')
     print()
 
-model.save_pretrained("modelo_personalidad_bert")
-tokenizer.save_pretrained("modelo_personalidad_bert")
+model.save_pretrained(output_model_file)
+tokenizer.save_pretrained(output_model_file)
 
-print("Modelo guardado correctamente.")
+print(f"Modelo guardado correctamente en {output_model_file}.")
