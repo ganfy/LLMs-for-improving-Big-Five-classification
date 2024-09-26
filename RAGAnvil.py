@@ -11,6 +11,19 @@ from typing import List
 from pydantic import BaseModel
 # from llama_cpp import Llama
 
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
+import certifi
+import anvil.server
+# Disable SSL verification (not recommended for production)
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+ssl_context = ssl.create_default_context(cafile=certifi.where())
+anvil.server.connect("server_FZ7PWJFC3DIOK4RG74Q4DYEE-PN47TA3KNA6VHP23")
+
+
 # Load documents
 documents = SimpleDirectoryReader("/home/giu/PFC2/LLMs-for-improving-Big-Five-classification/HOPE_WSDM_2022/All").load_data()
 
@@ -70,15 +83,6 @@ def truncate_conversation(conversation, max_tokens=1024):
         truncated_conversation.insert(0, entry)
     return truncated_conversation
 
-def perform_retrieval(query_input, index, top_k=10):
-    # Directly retrieve the top_k relevant documents based on the input query
-    retrieved_docs = index.as_retriever(verbose=True).retrieve(query_input)
-    
-    # Print the retrieved fragments
-    print("\nRetrieved Fragments from RAG:")
-    for i, doc in enumerate(retrieved_docs, 1):
-        print(f"{i}. {doc['content']}")
-
 # Initialize CSV file
 csv_file = "conversation.csv"
 if not os.path.exists(csv_file):
@@ -108,8 +112,6 @@ while not sufficient_info:
     short_term_memory = "\n".join(truncated_conversation)
     formatted_query = f"Client: {user_input}\nPsychotherapist question: "
     print("Querying LLM...: ", formatted_query,"\n")
-
-    # perform_retrieval(formatted_query, index)
 
     response = query_engine.query(formatted_query)
     response_text = str(response)
