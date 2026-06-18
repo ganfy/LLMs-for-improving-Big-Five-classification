@@ -147,41 +147,76 @@ import pinecone
 from openai import OpenAI
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import Pinecone as LangchainPinecone
-
+from langchain_community.document_loaders import DirectoryLoader
 from pinecone import Pinecone, ServerlessSpec
+
+# Cargar documentos (compartido para todos los usuarios)
+documents = DirectoryLoader("/home/giu/PFC2/LLMs-for-improving-Big-Five-classification/HOPE_WSDM_2022/All").load()
 
 client = OpenAI(base_url="http://localhost:1234/v1", api_key="not-needed")
 messages = [
-    {"role": "system", "content": "Eres un asistente que ofrece información certera y no muy extensa sobre los temas consultados."}
+    {"role": "system", "content": '''You are a psychotherapist conducting a conversation with a client. Your main goals are to gather information about the client's personality and avoid dataset bias. 
+Use the retrieved examples to help form your questions, ensuring they are reflective, empathetic, and encourage deep introspection.
+
+1. Formulate your responses as insightful questions or statements to guide the client's self-reflection.
+2. Avoid repeating questions from the conversation history.
+3. Ensure your questions are designed to elicit detailed and unbiased responses, avoiding yes or no questions.
+4. Use the Socratic method to explore the client's thoughts, feelings, and motivations.
+5. If the client provides limited information, ask open-ended questions to gather more details.
+6. Avoid using excessive negative language unless there are clear indicators of neuroticism. Strive to use neutral or positive wording where appropriate to avoid misinterpreting the client's statements. Ensure the use or avoidance of certain words according to the client's detected traits, to make them more evident.
+7. Your goal is to collect sufficient information in the areas of openness, conscientiousness, extraversion, agreeableness, and neuroticism.
+
+Only respond with the next question or statement you would make as a psychotherapist. Once you have gathered enough information in all five areas, respond with 'Enough'. Ensure the conversation does not exceed 2048 tokens. The client may respond in English or Spanish.
+'''}
 ]
 
-pinecone = Pinecone(
-    api_key="8caa514e-889a-4166-9319-d91f0925fc9d"
-)
+pinecone = Pinecone(api_key="8caa514e-889a-4166-9319-d91f0925fc9d")
+spec = ServerlessSpec(cloud='aws', region='us-east-1')
 
-spec = ServerlessSpec(cloud='aws', region='us-east-1') 
+# Configurar el vectorstore de documentos (compartido para todos los usuarios)
+docs_index_name = "docs-memory"
+if docs_index_name not in pinecone.list_indexes().names():
+    pinecone.create_index(name=docs_index_name, spec=spec, dimension=384)
+docs_index = pinecone.Index(docs_index_name)
 
-# Crear un índice de Pinecone si no existe
-index_name = "chat-memory"
-if index_name not in pinecone.list_indexes().names():
-    pinecone.create_index(name=index_name, spec=spec, dimension=384)
-
-# Conectar al índice
-index = pinecone.Index(index_name)
-
-# Configura los embeddings
 hf_embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-vectorstore = LangchainPinecone(index=pinecone.Index(index_name), embedding=hf_embeddings.embed_query, text_key="text")
+docs_vectorstore = LangchainPinecone(index=pinecone.Index(docs_index_name), embedding=hf_embeddings.embed_query, text_key="text")
 
-WINDOW_SIZE = 5
 
-def send_message(user_content, messages):
+# Función para crear/obtener el vectorstore del chat según el usuario
+def get_chat_vectorstore_for_user(username):
+    chat_index_name = f"{username}-mem"
+
+    # Crear el índice para el chat si no existe
+    if chat_index_name not in pinecone.list_indexes().names():
+        pinecone.create_index(name=chat_index_name, spec=spec, dimension=384)
+    chat_index = pinecone.Index(chat_index_name)
+
+    # Configurar el vectorstore del chat
+    chat_vectorstore = LangchainPinecone(index=pinecone.Index(chat_index_name), embedding=hf_embeddings.embed_query, text_key="text")
+
+    return chat_vectorstore
+
+
+WINDOW_SIZE = 8
+
+def send_message(user_content, messages, chat_vectorstore):
     messages.append({"role": "user", "content": user_content})
 
-    # Recupera interacciones previas
-    previous_messages = load_previous_interactions(user_content)
-    all_messages = previous_messages + messages[-WINDOW_SIZE:]  # Usa solo los últimos mensajes
+    # Recuperar interacciones previas
+    previous_messages = load_previous_interactions(user_content, chat_vectorstore)
 
+    # Recuperar ejemplos relevantes del RAG (documentos) que contengan preguntas/comentarios del psicoterapeuta
+    relevant_docs = retrieve_relevant_documents(user_content)
+    
+    # Unir interacciones previas y mensajes recientes
+    all_messages = previous_messages + messages[-WINDOW_SIZE:]
+
+    # Adjuntar los documentos relevantes al prompt para proporcionar contexto adicional
+    for doc in relevant_docs:
+        all_messages.append({"role": "system", "content": f"(Document): {doc}"})
+
+    # Generar la respuesta del modelo
     completion = client.chat.completions.create(
         model="local-model",
         messages=all_messages,
@@ -194,34 +229,93 @@ def send_message(user_content, messages):
     # Añadir la respuesta del asistente al historial
     messages.append({"role": "assistant", "content": assistant_message})
 
-    # Almacenar la respuesta en Pinecone
-    store_in_pinecone(user_content, assistant_message)
+    # Almacenar la respuesta en el vectorstore del chat
+    store_in_chat_vectorstore(user_content, assistant_message, chat_vectorstore)
 
     return assistant_message
 
-def store_in_pinecone(user_content, assistant_message):
+def store_in_chat_vectorstore(user_content, assistant_message, chat_vectorstore):
     # Crea un vector para la consulta
-    vector = hf_embeddings.embed_query(assistant_message)  # Usa el mensaje del asistente
+    vector = hf_embeddings.embed_query(assistant_message)
 
-    # Prepara el documento para almacenar
+    # Prepara el documento para almacenar en la memoria del chat
     document_id = f"msg-{len(messages)}"  # Genera un ID único
-    vectorstore.add_texts([assistant_message], metadatas=[{"user_input": user_content}], ids=[document_id])
+    chat_vectorstore.add_texts([assistant_message], metadatas=[{"user_input": user_content}], ids=[document_id])
 
-def load_previous_interactions(message):
-    """Carga interacciones anteriores desde Pinecone."""
-    results = vectorstore.similarity_search(message)  # Busca mensajes almacenados
+def load_previous_interactions(message, chat_vectorstore):
+    """Carga interacciones anteriores desde el vectorstore del chat."""
+    results = chat_vectorstore.similarity_search(message)  # Busca mensajes almacenados
     previous_messages = []
     for result in results:
-        previous_messages.append({"(Previous message)":"", "role": "user", "content": result.metadata['user_input']})
-        previous_messages.append({"(Previous message) ":"", "role": "assistant", "content": result.page_content})
-    print("Interacciones previas cargadas:", previous_messages)
+        previous_messages.append({"role": "user", "content": result.metadata['user_input']})
+        previous_messages.append({"role": "assistant", "content": result.page_content})
     return previous_messages
 
+def retrieve_relevant_documents(query):
+    """Busca ejemplos relevantes de los documentos cargados para el RAG que contengan preguntas o comentarios del psicoterapeuta."""
+    results = docs_vectorstore.similarity_search(query)
+    
+    # Filtrar resultados que contengan preguntas/comentarios del psicoterapeuta
+    relevant_docs = []
+    for result in results:
+        if "psychotherapist:" in result.page_content:  # Ajusta según cómo esté estructurado el contenido
+            relevant_docs.append(result.page_content)
+    
+    return relevant_docs[:3]  # Devolver los tres documentos más relevantes
+
+# Almacenar los documentos en el vectorstore compartido una sola vez
+def store_documents_in_vectorstore_once():
+    if docs_vectorstore._index.describe_index_stats()["total_vector_count"] == 0:
+        print("Guardando documentos en el vectorstore...")
+        texts = [doc.page_content for doc in documents]
+        docs_vectorstore.add_texts(texts, metadatas=[{"source": "document"} for _ in texts])
+    else:
+        print("Documentos ya almacenados.")
+
+# Almacenar los documentos una sola vez al inicio
+store_documents_in_vectorstore_once()
+
+# Iniciar la conversación preguntando por el usuario
+username = input("Introduce tu nombre de usuario: ")
+
+# Obtener el vectorstore del chat específico para el usuario
+chat_vectorstore = get_chat_vectorstore_for_user(username)
+
+initial_prompt = "Hola, cómo te sientes hoy?"
+print(initial_prompt)
+messages.append({"role": "assistant", "content":  "Hola, cómo te sientes hoy?"})
+
 # Ejemplo de uso
+conversation = []
+answers = []
+counter = 0
+conversation.append(initial_prompt)
 while True:
-        user_input = input("Tú: ")
-        if user_input.lower() in ["salir", "exit"]:
-            print("Saliendo...")
-            break
-        response = send_message(user_input, messages)
+    user_input = input("Tú: ")
+    counter += 1
+    conversation.append(f"Client: {user_input}")
+    answers.append(user_input)
+    if user_input.lower() in ["salir", "exit"]:
+        print("Saliendo...")
+        break
+    if counter == 6:
+        print("Has alcanzado el límite de respuestas.")
+        break
+    else:
+        response = send_message(user_input, messages, chat_vectorstore)
         print("Asistente:", response)
+        conversation.append(f"Psychotherapist: {response}")
+
+
+import csv
+
+# Save conversation to TXT
+conversation_text = "\n\n" + "\n".join(conversation)
+with open("conversation.txt", "a") as file:
+    file.write(conversation_text + "\n\n")
+# Save answers to CSV
+answer_text = " ".join(answers)
+csv_file = "conversation"+username+".csv"
+with open(csv_file, mode='a', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow([answer_text])  # Write answers

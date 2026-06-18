@@ -1,0 +1,51 @@
+
+1. **11001** - Mujer. 25 años. Extrovertida y creativa. Habla con entusiasmo, le gusta organizar reuniones y explorar nuevas ideas.
+2. **00110** - Hombre. 30 años. Reservado y meticuloso. Habla con precisión, disfruta resolver problemas y planificar.
+3. **00111** - Mujer. 22 años. Amable y tranquila. Habla con suavidad, le gusta ayudar a los demás y leer novelas románticas.
+4. **11101** - Hombre. 40 años. Carismático y optimista. Habla con energía, le gusta liderar equipos y viajar.
+5. **01010** - Mujer. 35 años. Reflexiva y algo rígida. Habla de forma concisa, disfruta de rutinas claras y tareas detalladas.
+6. **11010** - Hombre. 28 años. Seguro y organizado. Habla de manera directa, le gusta planificar proyectos grandes.
+7. **00011** - Mujer. 20 años. Introvertida y empática. Habla suavemente, disfruta escribir poesía y escuchar música tranquila.
+8. **11100** - Hombre. 32 años. Extrovertido y competitivo. Habla con confianza, le gustan los deportes y los retos.
+9. **01101** - Mujer. 27 años. Analítica y optimista. Habla con claridad, le gusta resolver problemas complejos y aprender cosas nuevas.
+10. **00010** - Hombre. 45 años. Callado y estructurado. Habla pausado, le gusta coleccionar objetos y organizar eventos.
+11. **01011** - Mujer. 29 años. Leal y amable. Habla con calidez, le gusta el voluntariado y los animales.
+12. **11110** - Hombre. 50 años. Sociable y ambicioso. Habla con determinación, le gusta emprender proyectos y conocer personas.
+13. **10001** - Mujer. 33 años. Reservada pero alegre. Habla con modestia, le gusta hacer senderismo y tomar fotografías.
+14. **01100** - Hombre. 41 años. Detallista y equilibrado. Habla de manera pausada, le gusta leer historia y cuidar plantas.
+15. **10111** - Mujer. 23 años. Curiosa y amable. Habla animadamente, le gusta la ciencia y los videojuegos.
+16. **00100** - Hombre. 34 años. Calmado y escéptico. Habla con serenidad, disfruta resolver acertijos y leer ensayos filosóficos.
+17. **11111** - Mujer. 38 años. Extrovertida y solidaria. Habla de manera animada, le gusta liderar proyectos de ayuda social.
+18. **00001** - Hombre. 26 años. Callado y reflexivo. Habla en tono bajo, le gusta la fotografía y el cine clásico.
+19. **11011** - Mujer. 31 años. Alegre y analítica. Habla de manera entusiasta, le gusta enseñar y estudiar nuevas teorías.
+20. **10101** - Hombre. 36 años. Responsable y carismático. Habla con convicción, le gusta emprender y participar en eventos sociales.
+21. **01111** - Mujer. 29 años. Creativa y bondadosa. Habla con dulzura, le gusta pintar y trabajar con niños.
+22. **01001** - Hombre. 39 años. Tranquilo y práctico. Habla de manera sencilla, le gusta reparar cosas y cuidar su jardín.
+23. **10011** - Mujer. 24 años. Reservada y sensible. Habla de manera delicada, disfruta leer poesía y meditar.
+24. **11100** - Hombre. 33 años. Optimista y aventurero. Habla con entusiasmo, le gusta practicar deportes extremos.
+25. **00110** - Mujer. 40 años. Amable y disciplinada. Habla pausadamente, le gusta cocinar y enseñar a otros.
+26. **11001** - Hombre. 28 años. Extrovertido y curioso. Habla rápido, le gusta viajar y aprender idiomas.
+27. **01110** - Mujer. 35 años. Reflexiva y creativa. Habla pausadamente, le gusta escribir cuentos y hacer manualidades.
+28. **00000** - Hombre. 42 años. Callado y distante. Habla poco, le gusta leer ciencia ficción y trabajar solo.
+29. **11111** - Mujer. 37 años. Entusiasta y generosa. Habla alegremente, le gusta organizar eventos solidarios y viajar.
+30. **11010** - Hombre. 29 años. Seguro y directo. Habla rápido, le gusta liderar proyectos y aprender habilidades nuevas.
+31. **00000** - Mujer. 22 años. Introvertida y práctica. Habla de forma breve, disfruta las matemáticas y cuidar animales.
+32. **00100** - Hombre. 45 años. Reflexivo y algo rígido. Habla de manera pausada, le gusta coleccionar relojes y leer manuales técnicos.
+33. **01101** - Mujer. 26 años. Bondadosa y curiosa. Habla con calma, disfruta aprender idiomas y escuchar música.
+34. **11000** - Hombre. 30 años. Seguro y estructurado. Habla con firmeza, le gusta organizar eventos y estudiar mercados.
+35. **10111** - Mujer. 38 años. Alegre y compasiva. Habla de forma amena, disfruta la música y cuidar plantas.
+36. **00101** - Hombre. 27 años. Reservado y leal. Habla pausadamente, disfruta los videojuegos y la programación.
+37. **11010** - Mujer. 32 años. Responsable y tranquila. Habla de manera mesurada, le gusta leer novelas históricas y cuidar a su familia.
+38. **00010** - Hombre. 34 años. Metódico y reservado. Habla brevemente, le gusta la planificación y resolver acertijos.
+39. **11110** - Mujer. 40 años. Alegre y emprendedora. Habla enérgicamente, disfruta liderar proyectos y viajar.
+40. **00001** - Hombre. 25 años. Reflexivo y algo introvertido. Habla poco, disfruta la astronomía y los acertijos.
+41. **11011** - Mujer. 28 años. Curiosa y motivada. Habla entusiastamente, disfruta el diseño gráfico y aprender idiomas.
+42. **01100** - Hombre. 31 años. Organizado y amable. Habla calmadamente, disfruta hacer listas y trabajar en equipo.
+43. **10101** - Mujer. 29 años. Carismática y creativa. Habla con entusiasmo, disfruta pintar y liderar proyectos grupales.
+44. **00111** - Hombre. 37 años. Empático y bondadoso. Habla suavemente, le gusta enseñar y hacer trabajo voluntario.
+45. **11101** - Mujer. 33 años. Extrovertida y optimista. Habla rápidamente, disfruta organizar eventos y explorar lugares nuevos.
+46. **10001** - Hombre. 22 años. Callado y observador. Habla de manera pausada, le gusta observar la naturaleza y aprender habilidades manuales.
+47. **01111** - Mujer. 35 años. Creativa y amable. Habla con ternura, disfruta bordar y contar historias.
+48. **01001** - Hombre. 39 años. Calmado y práctico. Habla de forma sencilla, le gusta reparar cosas y trabajar con madera.
+49. **11010** - Mujer. 27 años. Segura y energética. Habla con claridad, le gusta bailar y liderar grupos.
+50. **10100** - Hombre. 29 años. Reflexivo y analítico. Habla pausadamente, le gusta estudiar matemáticas y explorar teorías.
