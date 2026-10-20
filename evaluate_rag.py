@@ -16,6 +16,8 @@ dialogue         Calidad del diálogo generado con RAG, a partir de los logs
 labels           Fidelidad de las etiquetas de RAGv.csv y RAGg.csv frente al
                  código Big Five de la persona simulada (personalidades.txt)
                  y balance de clases de todos los datasets. Offline.
+corpus-check     Diagnóstico del corpus HOPE (turnos, pares cliente→terapeuta) y
+                 comprobación del filtro "psychotherapist:" de memoryChat*.py.
 retrieval-dump   Re-ejecuta la recuperación (bge-small + cross-encoder, igual
                  que RAGv4.py) sobre las consultas reales de los logs y guarda
                  los candidatos en JSONL. Requiere el corpus HOPE y
@@ -28,9 +30,16 @@ all              Ejecuta dialogue + labels y escribe rag_eval_report.md.
 Ejemplos
 --------
     python evaluate_rag.py all
-    python evaluate_rag.py retrieval-dump --docs HOPE_WSDM_2022/All --max-queries 150
+    python evaluate_rag.py corpus-check --docs HOPE_WSDM_2022/All
+    python evaluate_rag.py retrieval-dump --docs HOPE_WSDM_2022/All --max-queries 60
     python evaluate_rag.py retrieval-judge --model llama3
     python evaluate_rag.py retrieval-score
+
+Para comparar una mejora con la configuración de la tesis, usa --out distinto:
+    ... retrieval-dump --docs ... --out rag_eval_results/base
+    ... retrieval-dump --docs ... --out rag_eval_results/pares --corpus pairs
+    ... retrieval-dump --docs ... --out rag_eval_results/e5 --corpus pairs --embedder st \\
+        --embed-model intfloat/multilingual-e5-small --query-prefix "query: " --doc-prefix "passage: "
 
 Dependencias: numpy, pandas, scikit-learn, scipy (las cuatro ya las usa el
 proyecto). Solo retrieval-dump necesita además llama-index (0.10.x) y
@@ -600,14 +609,130 @@ def run_dump_pipeline(queries, search_fn, out_path: Path):
             f.write(json.dumps({**q, "dense": dense, "rerank": rer}, ensure_ascii=False) + "\n")
 
 
-def build_llamaindex_pipeline(docs_dir: Path, embed_model: str, rerank_model: str, top_k: int, chunk_size: int, recursive: bool):
+def _trunc_words(text: str, n: int, tail: bool = False) -> str:
+    w = text.split()
+    return " ".join(w[-n:] if tail else w[:n])
+
+
+def hope_pairs(docs_dir: Path, recursive: bool = False, max_words: int = 120) -> list[dict]:
+    """Pares (turno del cliente → respuesta del terapeuta) de las transcripciones HOPE (columnas Type y Utterance).
+    Une turnos consecutivos del mismo hablante. Es la unidad natural de este RAG: dado lo que dijo el cliente,
+    ¿qué suele responder un terapeuta?"""
+    docs_dir = Path(docs_dir)
+    files = sorted(docs_dir.rglob("*.csv") if recursive else docs_dir.glob("*.csv"))
+    pairs = []
+    for f in files:
+        try:
+            d = read_csv_any(f)
+        except Exception:
+            continue
+        if not {"Type", "Utterance"} <= set(d.columns):
+            continue
+        blocks: list[list] = []
+        for typ, utt in zip(d["Type"], d["Utterance"]):
+            if not isinstance(utt, str) or not utt.strip():
+                continue
+            sp = str(typ).strip().upper()
+            if sp not in ("T", "P"):
+                continue
+            if blocks and blocks[-1][0] == sp:
+                blocks[-1][1].append(utt.strip())
+            else:
+                blocks.append([sp, [utt.strip()]])
+        for (s1, u1), (s2, u2) in zip(blocks, blocks[1:]):
+            if s1 == "P" and s2 == "T":
+                pairs.append({"file": f.name, "client": _trunc_words(" ".join(u1), max_words, tail=True),
+                              "therapist": _trunc_words(" ".join(u2), max_words)})
+    return pairs
+
+
+def run_corpus_check(docs_dir: Path, out: Path) -> str:
+    """Describe el corpus tal como lo ven los scripts de la tesis y comprueba el filtro 'psychotherapist:' de memoryChat*.py."""
+    docs_dir = Path(docs_dir)
+    files = sorted(p for p in docs_dir.rglob("*") if p.suffix.lower() in (".csv", ".txt", ".md"))
+    n_filter = 0
+    n_turns = n_t = 0
+    acts: dict[str, int] = {}
+    for f in files:
+        raw = f.read_text(encoding="utf-8", errors="replace")
+        if "psychotherapist:" in raw:  # la comprobación exacta (sensible a mayúsculas) de memoryChat*.py
+            n_filter += 1
+        if f.suffix.lower() != ".csv":
+            continue
+        try:
+            d = read_csv_any(f)
+        except Exception:
+            continue
+        if "Type" not in d.columns:
+            continue
+        ty = d["Type"].astype(str).str.strip().str.upper()
+        n_turns += int(ty.isin(["T", "P"]).sum())
+        n_t += int((ty == "T").sum())
+        col = next((c for c in ("Dialog_Act", "Dialogue_Act") if c in d.columns), None)
+        if col:
+            for a in d.loc[ty == "T", col].dropna().astype(str):
+                for tok in a.split(","):
+                    acts[tok.strip()] = acts.get(tok.strip(), 0) + 1
+    pairs = hope_pairs(docs_dir)
+    md = ["# Diagnóstico del corpus HOPE", "",
+          f"- Archivos leídos: **{len(files)}** en `{docs_dir}`",
+          f"- Turnos totales (T+P): **{n_turns}**; del terapeuta (T): **{n_t}** ({n_t / max(n_turns, 1):.1%})",
+          f"- Pares cliente→terapeuta: **{len(pairs)}**",
+          f"- Archivos que contienen el texto `psychotherapist:` (filtro de `memoryChatPinecone.py` y `memoryChatGraph.py`; sensible a mayúsculas, igual que ellos): **{n_filter} de {len(files)}**", ""]
+    if acts:
+        top = sorted(acts.items(), key=lambda kv: -kv[1])[:10]
+        md += ["Actos de diálogo del terapeuta más frecuentes: " + ", ".join(f"`{a}` {c}" for a, c in top), ""]
+    if files and n_filter == 0:
+        md += ["> ⚠️ Ningún documento contiene `psychotherapist:`. Con este corpus, `retrieve_relevant_documents()` de `memoryChat*.py` "
+               "devuelve una lista vacía en todos los turnos: el contexto HOPE nunca se añade al prompt y la única «memoria» activa sería el historial del chat. "
+               "Si tu ejecución original usó otro formato de HOPE, ignora este aviso; si no, hay que corregir el filtro y volver a generar los diálogos."]
+    text = "\n".join(md)
+    (out / "corpus_check.md").write_text(text, encoding="utf-8")
+    return text
+
+
+def make_embedding(embed_model: str, embedder: str = "fastembed", query_prefix: str = "", doc_prefix: str = ""):
+    """`fastembed` = lo que usa la tesis (RAGv4/RAGAnvil); `st` = sentence-transformers, que permite probar
+    otros modelos (p. ej. multilingües como BAAI/bge-m3 o intfloat/multilingual-e5-small con sus prefijos query:/passage:)."""
+    if embedder == "fastembed":
+        from llama_index.embeddings.fastembed import FastEmbedEmbedding
+        return FastEmbedEmbedding(model_name=embed_model)
+    from llama_index.core.embeddings import BaseEmbedding
+    from sentence_transformers import SentenceTransformer
+    st = SentenceTransformer(embed_model)
+
+    class STEmbedding(BaseEmbedding):
+        def _get_query_embedding(self, query):
+            return st.encode(query_prefix + query, normalize_embeddings=True).tolist()
+
+        def _get_text_embedding(self, text):
+            return st.encode(doc_prefix + text, normalize_embeddings=True).tolist()
+
+        def _get_text_embeddings(self, texts):
+            return st.encode([doc_prefix + t for t in texts], normalize_embeddings=True, batch_size=32).tolist()
+
+        async def _aget_query_embedding(self, query):
+            return self._get_query_embedding(query)
+
+    return STEmbedding(model_name=embed_model)
+
+
+def build_llamaindex_pipeline(docs_dir: Path, embed_model: str, rerank_model: str, top_k: int, chunk_size: int, recursive: bool,
+                              embedder: str = "fastembed", query_prefix: str = "", doc_prefix: str = "", corpus: str = "raw"):
     """Misma configuración que RAGv4.py: bge-small, chunk 512, top-10 y cross-encoder."""
     from llama_index.core import Settings, SimpleDirectoryReader, VectorStoreIndex
     from llama_index.core.postprocessor import SentenceTransformerRerank
-    from llama_index.embeddings.fastembed import FastEmbedEmbedding
 
-    docs = SimpleDirectoryReader(str(docs_dir), recursive=recursive).load_data()
-    Settings.embed_model = FastEmbedEmbedding(model_name=embed_model)
+    if corpus == "pairs":
+        from llama_index.core import Document
+        docs = [Document(text=f"Client: {p['client']}\nPsychotherapist: {p['therapist']}", metadata={"file_name": p["file"]},
+                         excluded_embed_metadata_keys=["file_name"], excluded_llm_metadata_keys=["file_name"])
+                for p in hope_pairs(docs_dir, recursive)]
+        if not docs:
+            raise SystemExit(f"No se encontraron pares cliente→terapeuta en {docs_dir} (se esperan CSV con columnas Type y Utterance).")
+    else:
+        docs = SimpleDirectoryReader(str(docs_dir), recursive=recursive).load_data()
+    Settings.embed_model = make_embedding(embed_model, embedder, query_prefix, doc_prefix)
     Settings.chunk_size = chunk_size
     index = VectorStoreIndex.from_documents(docs)  # búsqueda exacta por coseno, equivalente al Qdrant en memoria de la tesis
     retriever = index.as_retriever(similarity_top_k=top_k)
@@ -685,9 +810,14 @@ def _dcg(rels):
     return sum(r / np.log2(i + 2) for i, r in enumerate(rels))
 
 
+_HOPE_T = re.compile(r"(?:^|[\n,])\s*T\s*,")  # fila de HOPE con Type == T (CSV crudo o texto de PandasCSVReader)
+
+
 def _therapist(text: str) -> bool:
+    """¿El fragmento contiene algún turno del terapeuta? Acepta el formato «Psychotherapist: ...» (el que filtran
+    memoryChat*.py) y las filas crudas de HOPE (columna Type == T)."""
     t = text.lower()
-    return "psychotherapist:" in t or "therapist:" in t  # mismo filtro que usan memoryChat*.py
+    return "psychotherapist:" in t or "therapist:" in t or bool(_HOPE_T.search(text))
 
 
 def retrieval_query_metrics(rec: dict, vec) -> dict:
@@ -794,10 +924,18 @@ def main(argv=None):
     d.add_argument("--seed", type=int, default=0)
     d.add_argument("--wrap", action="store_true", help='usar el formato "Client: ...\\nPsychotherapist question:" de RAGAnvil.py')
     d.add_argument("--embed-model", default="BAAI/bge-small-en-v1.5")
+    d.add_argument("--embedder", choices=["fastembed", "st"], default="fastembed",
+                   help="fastembed = como la tesis; st = sentence-transformers (para probar modelos multilingües)")
+    d.add_argument("--query-prefix", default="", help='p. ej. "query: " para modelos e5')
+    d.add_argument("--doc-prefix", default="", help='p. ej. "passage: " para modelos e5')
     d.add_argument("--rerank-model", default="cross-encoder/ms-marco-MiniLM-L-2-v2")
     d.add_argument("--top-k", type=int, default=10)
     d.add_argument("--chunk-size", type=int, default=512)
     d.add_argument("--recursive", action="store_true")
+    d.add_argument("--corpus", choices=["raw", "pairs"], default="raw",
+                   help="raw = como la tesis (CSV completos troceados); pairs = un documento por par cliente→respuesta del terapeuta")
+    cc = sub.add_parser("corpus-check", parents=[common], help="diagnóstico del corpus HOPE y del filtro 'psychotherapist:'")
+    cc.add_argument("--docs", type=Path, required=True)
     j = sub.add_parser("retrieval-judge", parents=[common])
     j.add_argument("--model", default="llama3")
     j.add_argument("--host", default="http://localhost:11434")
@@ -822,15 +960,19 @@ def main(argv=None):
         if (out / "report_retrieval.md").is_file():
             parts += ["", (out / "report_retrieval.md").read_text(encoding="utf-8")]
         write_md(out, "rag_eval_report.md", "\n".join(parts))
+    if args.cmd == "corpus-check":
+        print(run_corpus_check(args.docs, out))
     if args.cmd == "retrieval-dump":
         qs = build_queries(args.root, args.max_queries, args.seed, args.wrap)
         print(f"[retrieval-dump] {len(qs)} consultas; indexando {args.docs} ...")
         t0 = time.time()
         try:
-            search, n_docs = build_llamaindex_pipeline(args.docs, args.embed_model, args.rerank_model, args.top_k, args.chunk_size, args.recursive)
+            search, n_docs = build_llamaindex_pipeline(args.docs, args.embed_model, args.rerank_model, args.top_k, args.chunk_size, args.recursive,
+                                                      args.embedder, args.query_prefix, args.doc_prefix, args.corpus)
         except ImportError as e:
-            raise SystemExit(f"Falta una dependencia ({e.name}). Instala: pip install llama-index-core llama-index-embeddings-fastembed sentence-transformers")
+            raise SystemExit(f"Falta una dependencia ({e.name}). Instala: pip install llama-index-core sentence-transformers  (+ llama-index-embeddings-fastembed si usas --embedder fastembed)")
         print(f"  {n_docs} documentos indexados en {time.time() - t0:.0f}s")
+        (out / "retrieval_config.json").write_text(json.dumps({k: (str(v) if isinstance(v, Path) else v) for k, v in vars(args).items()}, indent=2, ensure_ascii=False), encoding="utf-8")
         run_dump_pipeline(qs, search, dump)
         print(f"  → {dump}")
     if args.cmd == "retrieval-judge":
