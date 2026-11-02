@@ -151,7 +151,14 @@ from langchain_community.document_loaders import DirectoryLoader
 from pinecone import Pinecone, ServerlessSpec
 
 # Cargar documentos (compartido para todos los usuarios)
-documents = DirectoryLoader("/home/giu/PFC2/LLMs-for-improving-Big-Five-classification/HOPE_WSDM_2022/All").load()
+import os
+from hope_docs import load_hope_pairs, retrieve_therapist_examples
+# Ruta de HOPE: variable de entorno HOPE_DIR (por defecto, la de la máquina original)
+HOPE_DIR = os.environ.get("HOPE_DIR", "/home/giu/PFC2/LLMs-for-improving-Big-Five-classification/HOPE_WSDM_2022/All")
+hope_pairs = load_hope_pairs(HOPE_DIR)
+if not hope_pairs:
+    raise SystemExit(f"No se encontraron pares cliente→terapeuta en {HOPE_DIR} (se esperan CSV con columnas Type y Utterance).")
+print(f"[RAG] {len(hope_pairs)} pares cliente→terapeuta cargados de {HOPE_DIR}")
 
 client = OpenAI(base_url="http://localhost:1234/v1", api_key="not-needed")
 messages = [
@@ -170,11 +177,11 @@ Only respond with the next question or statement you would make as a psychothera
 '''}
 ]
 
-pinecone = Pinecone(api_key="8caa514e-889a-4166-9319-d91f0925fc9d")
+pinecone = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
 spec = ServerlessSpec(cloud='aws', region='us-east-1')
 
 # Configurar el vectorstore de documentos (compartido para todos los usuarios)
-docs_index_name = "docs-memory"
+docs_index_name = "docs-pairs"  # índice nuevo: pares cliente→terapeuta (el antiguo "docs-memory" tenía archivos enteros)
 if docs_index_name not in pinecone.list_indexes().names():
     pinecone.create_index(name=docs_index_name, spec=spec, dimension=384)
 docs_index = pinecone.Index(docs_index_name)
@@ -252,23 +259,17 @@ def load_previous_interactions(message, chat_vectorstore):
     return previous_messages
 
 def retrieve_relevant_documents(query):
-    """Busca ejemplos relevantes de los documentos cargados para el RAG que contengan preguntas o comentarios del psicoterapeuta."""
-    results = docs_vectorstore.similarity_search(query)
-    
-    # Filtrar resultados que contengan preguntas/comentarios del psicoterapeuta
-    relevant_docs = []
-    for result in results:
-        if "psychotherapist:" in result.page_content:  # Ajusta según cómo esté estructurado el contenido
-            relevant_docs.append(result.page_content)
-    
-    return relevant_docs[:3]  # Devolver los tres documentos más relevantes
+    """Los 3 ejemplos «Client/Psychotherapist» de HOPE más cercanos a lo que dijo el cliente (falla si no hay ninguno)."""
+    docs = retrieve_therapist_examples(docs_vectorstore, query, k=3)
+    print(f"[RAG] {len(docs)} ejemplos recuperados")
+    return docs
 
 # Almacenar los documentos en el vectorstore compartido una sola vez
 def store_documents_in_vectorstore_once():
     if docs_vectorstore._index.describe_index_stats()["total_vector_count"] == 0:
         print("Guardando documentos en el vectorstore...")
-        texts = [doc.page_content for doc in documents]
-        docs_vectorstore.add_texts(texts, metadatas=[{"source": "document"} for _ in texts])
+        texts = [p["client"] for p in hope_pairs]   # se indexa lo que dice el cliente…
+        docs_vectorstore.add_texts(texts, metadatas=[{"source": "document", "pair": p["text"]} for p in hope_pairs])  # …y se devuelve el par completo
     else:
         print("Documentos ya almacenados.")
 
